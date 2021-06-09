@@ -36,7 +36,8 @@ if os.getenv('REGION_OVERRIDE', 'NO') != 'NO':
 else:
     _REGION = os.getenv('AWS_DEFAULT_REGION')
 
-_SUPPORTED_ENGINES = [ 'mariadb', 'sqlserver-se', 'sqlserver-ee', 'sqlserver-ex', 'sqlserver-web', 'mysql', 'oracle-se', 'oracle-se1', 'oracle-se2', 'oracle-ee', 'postgres' ]
+_SUPPORTED_ENGINES = ['mariadb', 'sqlserver-se', 'sqlserver-ee', 'sqlserver-ex',
+                      'sqlserver-web', 'mysql', 'oracle-se', 'oracle-se1', 'oracle-se2', 'oracle-ee', 'postgres']
 
 
 logger = logging.getLogger()
@@ -48,33 +49,37 @@ class SnapshotToolException(Exception):
 
 
 def search_tag_copydbsnapshot(response):
-# Takes a list_tags_for_resource response and searches for our CopyDBSnapshot tag
+    # Takes a list_tags_for_resource response and searches for our CopyDBSnapshot tag
     try:
 
         for tag in response['TagList']:
-            if tag['Key'] == 'CopyDBSnapshot' and tag['Value'] == 'True': return True
+            if tag['Key'] == 'CopyDBSnapshot' and tag['Value'] == 'True':
+                return True
 
-    except Exception: return False
+    except Exception:
+        return False
 
-    else: return False
-
+    else:
+        return False
 
 
 def search_tag_created(response):
-# Takes a describe_db_snapshots response and searches for our CreatedBy tag
+    # Takes a describe_db_snapshots response and searches for our CreatedBy tag
     try:
 
         for tag in response['TagList']:
-            if tag['Key'] == 'CreatedBy' and tag['Value'] == 'Snapshot Tool for RDS': return True
+            if tag['Key'] == 'CreatedBy' and tag['Value'] == 'Snapshot Tool for RDS':
+                return True
 
-    except Exception: return False
+    except Exception:
+        return False
 
-    else: return False
-
+    else:
+        return False
 
 
 def search_tag_shared(response):
-# Takes a describe_db_snapshots response and searches for our shareAndCopy tag
+    # Takes a describe_db_snapshots response and searches for our shareAndCopy tag
     try:
         for tag in response['TagList']:
             if tag['Key'] == 'shareAndCopy' and tag['Value'] == 'YES':
@@ -88,9 +93,8 @@ def search_tag_shared(response):
     return False
 
 
-
 def search_tag_copied(response):
-# Search for a tag indicating we copied this snapshot
+    # Search for a tag indicating we copied this snapshot
     try:
         for tag in response['TagList']:
             if tag['Key'] == 'CopiedBy' and tag['Value'] == 'Snapshot Tool for RDS':
@@ -100,6 +104,7 @@ def search_tag_copied(response):
         return False
 
     return False
+
 
 def get_own_snapshots_no_x_account(pattern, response, REGION):
     # Filters our own snapshots
@@ -114,7 +119,7 @@ def get_own_snapshots_no_x_account(pattern, response, REGION):
             if search_tag_created(response_tags):
                 filtered[snapshot['DBSnapshotIdentifier']] = {
                     'Arn': snapshot['DBSnapshotArn'], 'Status': snapshot['Status'], 'DBInstanceIdentifier': snapshot['DBInstanceIdentifier']}
-        #Changed the next line to search for ALL_CLUSTERS or ALL_SNAPSHOTS so it will work with no-x-account
+        # Changed the next line to search for ALL_CLUSTERS or ALL_SNAPSHOTS so it will work with no-x-account
         elif snapshot['SnapshotType'] == 'manual' and pattern == 'ALL_SNAPSHOTS' and snapshot['Engine'] in _SUPPORTED_ENGINES:
             client = boto3.client('rds', region_name=REGION)
             response_tags = client.list_tags_for_resource(
@@ -128,7 +133,7 @@ def get_own_snapshots_no_x_account(pattern, response, REGION):
 
 
 def get_shared_snapshots(pattern, response):
-# Returns a dict with only shared snapshots filtered by pattern, with DBSnapshotIdentifier as key and the response as attribute
+    # Returns a dict with only shared snapshots filtered by pattern, with DBSnapshotIdentifier as key and the response as attribute
     filtered = {}
     for snapshot in response['DBSnapshots']:
         if snapshot['SnapshotType'] == 'shared' and re.search(pattern, snapshot['DBInstanceIdentifier']) and snapshot['Engine'] in _SUPPORTED_ENGINES:
@@ -145,16 +150,15 @@ def get_shared_snapshots(pattern, response):
     return filtered
 
 
-
 def get_snapshot_identifier(snapshot):
-# Function that will return the RDS Snapshot identifier given an ARN
+    # Function that will return the RDS Snapshot identifier given an ARN
     match = re.match('arn:aws:rds:.*:.*:snapshot:(.+)',
                      snapshot['DBSnapshotArn'])
     return match.group(1)
 
 
 def get_own_snapshots_dest(pattern, response):
-# Returns a dict  with local snapshots, filtered by pattern, with DBSnapshotIdentifier as key and Arn, Status as attributes
+    # Returns a dict  with local snapshots, filtered by pattern, with DBSnapshotIdentifier as key and Arn, Status as attributes
     filtered = {}
     for snapshot in response['DBSnapshots']:
 
@@ -167,15 +171,16 @@ def get_own_snapshots_dest(pattern, response):
 
         elif snapshot['SnapshotType'] == 'manual' and pattern == 'ALL_SNAPSHOTS' and snapshot['Engine'] in _SUPPORTED_ENGINES:
             filtered[snapshot['DBSnapshotIdentifier']] = {
-                'Arn': snapshot['DBSnapshotArn'], 'Status': snapshot['Status'], 'Encrypted': snapshot['Encrypted'], 'DBInstanceIdentifier': snapshot['DBInstanceIdentifier'] }
+                'Arn': snapshot['DBSnapshotArn'], 'Status': snapshot['Status'], 'Encrypted': snapshot['Encrypted'], 'DBInstanceIdentifier': snapshot['DBInstanceIdentifier']}
 
             if snapshot['Encrypted'] is True:
                 filtered[snapshot['DBSnapshotIdentifier']]['KmsKeyId'] = snapshot['KmsKeyId']
 
     return filtered
 
+
 def filter_instances(taggedinstance, pattern, instance_list):
-# Takes the response from describe-db-instances and filters according to pattern in DBInstanceIdentifier
+    # Takes the response from describe-db-instances and filters according to pattern in DBInstanceIdentifier
     filtered_list = []
 
     for instance in instance_list['DBInstances']:
@@ -200,7 +205,7 @@ def filter_instances(taggedinstance, pattern, instance_list):
 
 
 def get_own_snapshots_source(pattern, response, backup_interval=None):
-# Filters our own snapshots
+    # Filters our own snapshots
     filtered = {}
 
     for snapshot in response['DBSnapshots']:
@@ -235,7 +240,7 @@ def get_own_snapshots_source(pattern, response, backup_interval=None):
 
 
 def get_timestamp_no_minute(snapshot_identifier, snapshot_list):
-# Get a timestamp from the name of a snapshot and strip out the minutes
+    # Get a timestamp from the name of a snapshot and strip out the minutes
     pattern = '%s-(.+)-\d{2}' % snapshot_list[snapshot_identifier]['DBInstanceIdentifier']
     timestamp_format = '%Y-%m-%d-%H'
     date_time = re.search(pattern, snapshot_identifier)
@@ -245,7 +250,7 @@ def get_timestamp_no_minute(snapshot_identifier, snapshot_list):
 
 
 def get_timestamp(snapshot_identifier, snapshot_list):
-# Searches for a timestamp on a snapshot name
+    # Searches for a timestamp on a snapshot name
     pattern = '%s-(.+)' % snapshot_list[snapshot_identifier]['DBInstanceIdentifier']
     date_time = re.search(pattern, snapshot_identifier)
 
@@ -260,12 +265,11 @@ def get_timestamp(snapshot_identifier, snapshot_list):
     return None
 
 
-
 def get_latest_snapshot_ts(instance_identifier, filtered_snapshots):
-# Get latest snapshot for a specific DBInstanceIdentifier
+    # Get latest snapshot for a specific DBInstanceIdentifier
     timestamps = []
 
-    for snapshot,snapshot_object in filtered_snapshots.items():
+    for snapshot, snapshot_object in filtered_snapshots.items():
 
         if snapshot_object['DBInstanceIdentifier'] == instance_identifier:
             timestamp = get_timestamp_no_minute(snapshot, filtered_snapshots)
@@ -280,9 +284,8 @@ def get_latest_snapshot_ts(instance_identifier, filtered_snapshots):
         return None
 
 
-
 def requires_backup(backup_interval, instance, filtered_snapshots):
-# Returns True if latest snapshot is older than INTERVAL
+    # Returns True if latest snapshot is older than INTERVAL
     latest = get_latest_snapshot_ts(instance['DBInstanceIdentifier'], filtered_snapshots)
 
     if latest is not None:
@@ -299,7 +302,7 @@ def requires_backup(backup_interval, instance, filtered_snapshots):
 
 
 def paginate_api_call(client, api_call, objecttype, *args, **kwargs):
-#Takes an RDS boto client and paginates through api_call calls and returns a list of objects of objecttype
+    # Takes an RDS boto client and paginates through api_call calls and returns a list of objects of objecttype
     response = {}
     response[objecttype] = []
 
@@ -322,25 +325,24 @@ def copy_local(snapshot_identifier, snapshot_object):
     tags = [{
             'Key': 'CopiedBy',
             'Value': 'Snapshot Tool for RDS'
-        }]
+            }]
 
     if snapshot_object['Encrypted']:
         logger.info('Copying encrypted snapshot %s locally' % snapshot_identifier)
         response = client.copy_db_snapshot(
-            SourceDBSnapshotIdentifier = snapshot_object['Arn'],
-            TargetDBSnapshotIdentifier = snapshot_identifier,
-            KmsKeyId = _KMS_KEY_SOURCE_REGION,
-            Tags = tags)
+            SourceDBSnapshotIdentifier=snapshot_object['Arn'],
+            TargetDBSnapshotIdentifier=snapshot_identifier,
+            KmsKeyId=_KMS_KEY_SOURCE_REGION,
+            Tags=tags)
 
     else:
-        logger.info('Copying snapshot %s locally' %snapshot_identifier)
+        logger.info('Copying snapshot %s locally' % snapshot_identifier)
         response = client.copy_db_snapshot(
-            SourceDBSnapshotIdentifier = snapshot_object['Arn'],
-            TargetDBSnapshotIdentifier = snapshot_identifier,
-            Tags = tags)
+            SourceDBSnapshotIdentifier=snapshot_object['Arn'],
+            TargetDBSnapshotIdentifier=snapshot_identifier,
+            Tags=tags)
 
     return response
-
 
 
 def copy_remote(snapshot_identifier, snapshot_object):
@@ -349,18 +351,18 @@ def copy_remote(snapshot_identifier, snapshot_object):
     if snapshot_object['Encrypted']:
         logger.info('Copying encrypted snapshot %s to remote region %s' % (snapshot_object['Arn'], _DESTINATION_REGION))
         response = client.copy_db_snapshot(
-            SourceDBSnapshotIdentifier = snapshot_object['Arn'],
-            TargetDBSnapshotIdentifier = snapshot_identifier,
-            KmsKeyId = _KMS_KEY_DEST_REGION,
-            SourceRegion = _REGION,
-            CopyTags = True)
+            SourceDBSnapshotIdentifier=snapshot_object['Arn'],
+            TargetDBSnapshotIdentifier=snapshot_identifier,
+            KmsKeyId=_KMS_KEY_DEST_REGION,
+            SourceRegion=_REGION,
+            CopyTags=True)
 
     else:
         logger.info('Copying snapshot %s to remote region %s' % (snapshot_object['Arn'], _DESTINATION_REGION))
         response = client.copy_db_snapshot(
-            SourceDBSnapshotIdentifier = snapshot_object['Arn'],
-            TargetDBSnapshotIdentifier = snapshot_identifier,
-            SourceRegion = _REGION,
-            CopyTags = True)
+            SourceDBSnapshotIdentifier=snapshot_object['Arn'],
+            TargetDBSnapshotIdentifier=snapshot_identifier,
+            SourceRegion=_REGION,
+            CopyTags=True)
 
     return response
